@@ -13,15 +13,44 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+<<<<<<< HEAD
       "supportsTablet": true
+=======
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to tag project sites on campus.",
+        "NSCameraUsageDescription": "This app uses the camera to capture task proof photos.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload project images."
+      }
+>>>>>>> 83e6629 (Add my feature)
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+<<<<<<< HEAD
       "edgeToEdgeEnabled": true
     },
+=======
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      "expo-location",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow GreenTrack to access your photos.",
+          "cameraPermission": "Allow GreenTrack to use the camera."
+        }
+      ]
+    ],
+>>>>>>> 83e6629 (Add my feature)
     "web": {
       "favicon": "./assets/favicon.png"
     }

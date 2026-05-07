@@ -9,9 +9,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { signOut } from "firebase/auth";
+<<<<<<< HEAD
 
 import { auth } from "../../../firebaseConfig";
 import { adminService } from "../../services/adminService";
+=======
+import { Feather } from "@expo/vector-icons";
+
+import { auth } from "../../../firebaseConfig";
+import { adminService } from "../../services/adminService";
+import colors from "../../constants/colors";
+>>>>>>> 83e6629 (Add my feature)
 
 export default function AdminDashboard({ navigation }) {
   const [projects, setProjects] = useState([]);
@@ -88,7 +96,20 @@ export default function AdminDashboard({ navigation }) {
         </View>
 
         {/* PROJECTS */}
+<<<<<<< HEAD
         <Text style={styles.section}>📁 Projects</Text>
+=======
+        <View style={styles.sectionRow}>
+          <Text style={styles.section}>Projects</Text>
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={() => navigation.navigate("CreateProject")}
+          >
+            <Feather name="plus" size={15} color="#fff" />
+            <Text style={styles.createBtnText}>Create</Text>
+          </TouchableOpacity>
+        </View>
+>>>>>>> 83e6629 (Add my feature)
 
         {projects.map((p) => (
           <View key={p.id} style={styles.card}>
@@ -159,6 +180,33 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 
+<<<<<<< HEAD
+=======
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  createBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+
+  createBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+
+>>>>>>> 83e6629 (Add my feature)
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -213,4 +261,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 83e6629 (Add my feature)
