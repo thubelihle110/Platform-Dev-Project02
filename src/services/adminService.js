@@ -1,33 +1,61 @@
-import { db } from "../../firebaseConfig";
+import { auth, db } from "../../firebaseConfig";
 import {
-<<<<<<< HEAD
-=======
   addDoc,
-  serverTimestamp,
->>>>>>> 83e6629 (Add my feature)
+  arrayUnion,
   collection,
   doc,
   getDoc,
   getDocs,
-  updateDoc,
   query,
+  serverTimestamp,
+  updateDoc,
   where,
-  arrayUnion,
 } from "firebase/firestore";
 
-// helper functions
-const getProjects = async () => {
-  const snap = await getDocs(collection(db, "projects"));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-};
+import {
+  sendNewProjectAlertToStudentsAsync,
+  sendProjectResumedAlertAsync,
+  sendProjectStoppedAlertAsync,
+} from "./projectNotificationService";
 
-const getUsers = async () => {
-  const snap = await getDocs(collection(db, "users"));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-};
+async function getProjects() {
+  const snapshot = await getDocs(collection(db, "projects"));
+  return snapshot.docs.map((projectDoc) => ({
+    id: projectDoc.id,
+    ...projectDoc.data(),
+  }));
+}
 
-<<<<<<< HEAD
-=======
+async function getUsers() {
+  const snapshot = await getDocs(collection(db, "users"));
+  return snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }));
+}
+
+async function assertAdminUser() {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("You must be signed in to manage projects.");
+  }
+
+  const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+  const role = userDoc.exists() ? userDoc.data().role : null;
+
+  if (role !== "admin") {
+    throw new Error("Only administrators can manage projects.");
+  }
+
+  return currentUser;
+}
+
+async function safeNotificationDispatch(callback) {
+  try {
+    await callback();
+  } catch (error) {
+    console.log("Notification dispatch error:", error);
+  }
+}
+
 function cleanTask(task, index) {
   return {
     id: `task_${Date.now()}_${index}`,
@@ -41,15 +69,13 @@ function cleanTask(task, index) {
   };
 }
 
->>>>>>> 83e6629 (Add my feature)
 export const adminService = {
-  // ---------------- PROJECTS ----------------
   getProjects,
 
-<<<<<<< HEAD
-=======
   createProject: async (projectData, tasks = [], coverImageUri = null) => {
-    const docRef = await addDoc(collection(db, "projects"), {
+    await assertAdminUser();
+
+    const payload = {
       name: projectData.name,
       description: projectData.description || "",
       category: projectData.category,
@@ -59,87 +85,143 @@ export const adminService = {
       gps: projectData.gps || null,
       coverImageUrl: coverImageUri || projectData.coverImageUrl || null,
       status: "active",
+      stopReason: null,
       members: [],
       tasks: tasks.map(cleanTask),
       createdAt: serverTimestamp(),
-    });
+      updatedAt: serverTimestamp(),
+    };
+
+    const docRef = await addDoc(collection(db, "projects"), payload);
+
+    await safeNotificationDispatch(() =>
+      sendNewProjectAlertToStudentsAsync({
+        id: docRef.id,
+        name: payload.name,
+      })
+    );
 
     return docRef.id;
   },
 
->>>>>>> 83e6629 (Add my feature)
   getProjectById: async (id) => {
-    const snap = await getDoc(doc(db, "projects", id));
-    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    const snapshot = await getDoc(doc(db, "projects", id));
+    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
   },
 
   stopProject: async (id, reason) => {
-    return await updateDoc(doc(db, "projects", id), {
+    await assertAdminUser();
+
+    const projectRef = doc(db, "projects", id);
+    const snapshot = await getDoc(projectRef);
+
+    if (!snapshot.exists()) {
+      throw new Error("Project not found");
+    }
+
+    const project = { id: snapshot.id, ...snapshot.data() };
+
+    await updateDoc(projectRef, {
       status: "stopped",
-      stopReason: reason,
+      stopReason: reason || "Stopped by admin",
+      updatedAt: serverTimestamp(),
+      stoppedAt: serverTimestamp(),
     });
+
+    await safeNotificationDispatch(() =>
+      sendProjectStoppedAlertAsync(project)
+    );
   },
 
-  // ---------------- USERS ----------------
+  resumeProject: async (id) => {
+    await assertAdminUser();
+
+    const projectRef = doc(db, "projects", id);
+    const snapshot = await getDoc(projectRef);
+
+    if (!snapshot.exists()) {
+      throw new Error("Project not found");
+    }
+
+    const project = { id: snapshot.id, ...snapshot.data() };
+
+    await updateDoc(projectRef, {
+      status: "active",
+      stopReason: null,
+      updatedAt: serverTimestamp(),
+      resumedAt: serverTimestamp(),
+    });
+
+    await safeNotificationDispatch(() =>
+      sendProjectResumedAlertAsync(project)
+    );
+  },
+
   getUsers,
 
-  // ---------------- JOIN PROJECT (🔥 IMPORTANT FIX) ----------------
   joinProject: async (projectId, user) => {
     const projectRef = doc(db, "projects", projectId);
-    const snap = await getDoc(projectRef);
+    const snapshot = await getDoc(projectRef);
 
-    if (!snap.exists()) throw new Error("Project not found");
+    if (!snapshot.exists()) {
+      throw new Error("Project not found");
+    }
 
-    const data = snap.data();
-    const members = data.members || [];
+    const project = snapshot.data();
+    const members = project.members || [];
 
-    const alreadyJoined = members.find((m) => m.id === user.id);
-    if (alreadyJoined) return;
+    if (project.status === "stopped") {
+      throw new Error("This project is currently stopped.");
+    }
+
+    const alreadyJoined = members.find((member) => member.id === user.id);
+
+    if (alreadyJoined) {
+      return;
+    }
 
     await updateDoc(projectRef, {
       members: arrayUnion({
         id: user.id,
-        fullName: user.fullName,
+        fullName: user.fullName || user.email,
         email: user.email,
       }),
+      updatedAt: serverTimestamp(),
     });
   },
 
-  // ---------------- STATS ----------------
   getStats: async () => {
     const projects = await getProjects();
     const users = await getUsers();
 
     return {
-      activeProjects: projects.filter((p) => p.status === "active").length,
+      activeProjects: projects.filter((project) => project.status === "active")
+        .length,
       totalProjects: projects.length,
       totalUsers: users.length,
     };
   },
 
-  // ---------------- PROJECT USERS ----------------
   getProjectUsers: async (projectId) => {
-    const q = query(
+    const usersQuery = query(
       collection(db, "projectUsers"),
       where("projectId", "==", projectId)
     );
+    const snapshot = await getDocs(usersQuery);
 
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }));
   },
 
-  // ---------------- UPDATES ----------------
   getProjectUpdates: async (projectId) => {
-    const q = query(
+    const updatesQuery = query(
       collection(db, "updates"),
       where("projectId", "==", projectId)
     );
+    const snapshot = await getDocs(updatesQuery);
 
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return snapshot.docs.map((updateDocItem) => ({
+      id: updateDocItem.id,
+      ...updateDocItem.data(),
+    }));
   },
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 83e6629 (Add my feature)

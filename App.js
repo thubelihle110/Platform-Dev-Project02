@@ -1,21 +1,14 @@
 import React from "react";
-<<<<<<< HEAD
-=======
 import { GestureHandlerRootView } from "react-native-gesture-handler";
->>>>>>> 83e6629 (Add my feature)
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import AuthGate from "./src/navigation/AuthGate";
+import { configureNotificationHandler } from "./src/services/notificationService";
+
+configureNotificationHandler();
 
 export default function App() {
   return (
-<<<<<<< HEAD
-    <SafeAreaProvider>
-      <AuthGate />
-    </SafeAreaProvider>
-  );
-}
-=======
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthGate />
@@ -23,4 +16,3 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
->>>>>>> 83e6629 (Add my feature)

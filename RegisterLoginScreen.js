@@ -14,19 +14,17 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-
 import { doc, setDoc } from "firebase/firestore";
+
 import { auth, db } from "./firebaseConfig";
 
 export default function RegisterLoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
-
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // 🔐 LOGIN
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Missing fields", "Please enter email and password");
@@ -40,7 +38,6 @@ export default function RegisterLoginScreen() {
     }
   };
 
-  // 🟢 REGISTER
   const handleRegister = async () => {
     if (!fullName || !email || !password || !confirmPassword) {
       Alert.alert("Missing fields", "Please fill in all fields");
@@ -64,6 +61,7 @@ export default function RegisterLoginScreen() {
         fullName,
         email,
         role: "student",
+        expoPushTokens: [],
       });
 
       Alert.alert(
@@ -80,17 +78,17 @@ export default function RegisterLoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
-      <Text style={styles.logo}>🌿 GreenTrack</Text>
+      <Text style={styles.logo}>GreenTrack</Text>
 
       <View style={styles.card}>
-        {!isLogin && (
+        {!isLogin ? (
           <TextInput
             placeholder="Full Name"
             value={fullName}
             onChangeText={setFullName}
             style={styles.input}
           />
-        )}
+        ) : null}
 
         <TextInput
           placeholder="Email"
@@ -108,7 +106,7 @@ export default function RegisterLoginScreen() {
           style={styles.input}
         />
 
-        {!isLogin && (
+        {!isLogin ? (
           <TextInput
             placeholder="Confirm Password"
             secureTextEntry
@@ -116,7 +114,7 @@ export default function RegisterLoginScreen() {
             onChangeText={setConfirmPassword}
             style={styles.input}
           />
-        )}
+        ) : null}
 
         <TouchableOpacity
           style={styles.button}
@@ -127,7 +125,7 @@ export default function RegisterLoginScreen() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+        <TouchableOpacity onPress={() => setIsLogin((current) => !current)}>
           <Text style={styles.switch}>
             {isLogin
               ? "Don't have an account? Register"
@@ -139,7 +137,6 @@ export default function RegisterLoginScreen() {
   );
 }
 
-/* STYLES */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -147,7 +144,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 20,
   },
-
   logo: {
     fontSize: 32,
     fontWeight: "bold",
@@ -155,13 +151,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-
   card: {
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 20,
   },
-
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -169,20 +163,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-
   button: {
     backgroundColor: "#00b86b",
     padding: 15,
     borderRadius: 10,
     marginTop: 10,
   },
-
   buttonText: {
     color: "white",
     textAlign: "center",
     fontWeight: "bold",
   },
-
   switch: {
     marginTop: 15,
     textAlign: "center",
