@@ -9,7 +9,15 @@ import {
 
 import { db } from "../../firebaseConfig";
 import { notificationMessages } from "../utils/notificationMessages";
+import { createNotificationsForUsers } from "./notificationFirestoreService";
 import { sendPushNotificationsAsync } from "./notificationService";
+
+function mapUserTargets(userDocs) {
+  return userDocs.map((userDoc) => ({
+    id: userDoc.id,
+    ...userDoc.data(),
+  }));
+}
 
 function extractPushTokens(users) {
   return users.flatMap((user) =>
@@ -17,17 +25,21 @@ function extractPushTokens(users) {
   );
 }
 
-async function getStudentPushTokensAsync() {
+function extractUserIds(users) {
+  return [...new Set(users.map((user) => user?.id).filter(Boolean))];
+}
+
+async function getStudentTargetsAsync() {
   const studentsQuery = query(
     collection(db, "users"),
     where("role", "==", "student")
   );
   const snapshot = await getDocs(studentsQuery);
 
-  return extractPushTokens(snapshot.docs.map((userDoc) => userDoc.data()));
+  return mapUserTargets(snapshot.docs);
 }
 
-async function getProjectMemberPushTokensAsync(members = []) {
+async function getProjectMemberTargetsAsync(members = []) {
   const memberIds = [...new Set(members.map((member) => member?.id).filter(Boolean))];
 
   if (!memberIds.length) {
@@ -38,11 +50,12 @@ async function getProjectMemberPushTokensAsync(members = []) {
     memberIds.map((memberId) => getDoc(doc(db, "users", memberId)))
   );
 
-  return extractPushTokens(
-    memberDocs
-      .filter((memberDoc) => memberDoc.exists())
-      .map((memberDoc) => memberDoc.data())
-  );
+  return memberDocs
+    .filter((memberDoc) => memberDoc.exists())
+    .map((memberDoc) => ({
+      id: memberDoc.id,
+      ...memberDoc.data(),
+    }));
 }
 
 async function notifyAsync(tokens, message, data) {
@@ -53,31 +66,83 @@ async function notifyAsync(tokens, message, data) {
   return sendPushNotificationsAsync(tokens, message, data);
 }
 
-export async function sendNewProjectAlertToStudentsAsync(project) {
-  const tokens = await getStudentPushTokensAsync();
+async function createInboxAndPushAsync(targets, payload, pushData) {
+  const userIds = extractUserIds(targets);
 
-  return notifyAsync(tokens, notificationMessages.newProject(project?.name), {
+  if (userIds.length) {
+    await createNotificationsForUsers(userIds, payload);
+  }
+
+  try {
+    await notifyAsync(extractPushTokens(targets), payload, pushData);
+  } catch (error) {
+    console.log("Push delivery error:", error);
+  }
+}
+
+export async function sendNewProjectAlertToStudentsAsync(project) {
+  const targets = await getStudentTargetsAsync();
+  const message = notificationMessages.newProject(project?.name);
+
+  return createInboxAndPushAsync(
+    targets,
+    {
+      ...message,
+      type: "NEW_PROJECT",
+      projectId: project?.id || null,
+      data: {
+        source: "admin",
+      },
+    },
+    {
     type: "new_project",
     projectId: project?.id || null,
-  });
+    }
+  );
 }
 
 export async function sendProjectStoppedAlertAsync(project) {
-  const tokens = await getProjectMemberPushTokensAsync(project?.members);
+  const targets = await getProjectMemberTargetsAsync(project?.members);
+  const message = notificationMessages.projectStopped(project?.name);
 
-  return notifyAsync(tokens, notificationMessages.projectStopped(project?.name), {
+  return createInboxAndPushAsync(
+    targets,
+    {
+      ...message,
+      type: "STATUS",
+      projectId: project?.id || null,
+      data: {
+        source: "admin",
+        status: "stopped",
+      },
+    },
+    {
     type: "project_status",
     status: "stopped",
     projectId: project?.id || null,
-  });
+    }
+  );
 }
 
 export async function sendProjectResumedAlertAsync(project) {
-  const tokens = await getProjectMemberPushTokensAsync(project?.members);
+  const targets = await getProjectMemberTargetsAsync(project?.members);
+  const message = notificationMessages.projectResumed(project?.name);
 
-  return notifyAsync(tokens, notificationMessages.projectResumed(project?.name), {
+  return createInboxAndPushAsync(
+    targets,
+    {
+      ...message,
+      type: "STATUS",
+      projectId: project?.id || null,
+      data: {
+        source: "admin",
+        status: "active",
+      },
+    },
+    {
     type: "project_status",
     status: "active",
     projectId: project?.id || null,
-  });
+    }
+  );
 }

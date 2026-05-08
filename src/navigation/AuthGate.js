@@ -11,14 +11,18 @@ import { Feather } from "@expo/vector-icons";
 
 import { auth, db } from "../../firebaseConfig";
 import RegisterLoginScreen from "../../RegisterLoginScreen";
+import NotificationBellButton from "../components/NotificationBellButton";
+import { NotificationsProvider } from "../context/NotificationsContext";
+import colors from "../constants/colors";
 import AdminDashboard from "../screens/admin/AdminDashboard";
 import ProjectDetailAdmin from "../screens/admin/ProjectDetailAdmin";
 import CreateProjectScreen from "../screens/CreateProjectScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import ProjectDetailScreen from "../screens/ProjectDetailScreen";
+import ProjectsListScreen from "../screens/ProjectsListScreen";
 import UserDashboard from "../screens/user/UserDashboard";
 import UserProfileScreen from "../screens/user/UserProfileScreen";
-import ProjectsListScreen from "../screens/ProjectsListScreen";
-import ProjectDetailScreen from "../screens/ProjectDetailScreen";
-import colors from "../constants/colors";
+import { syncProjectDeadlineNotifications } from "../services/notificationFirestoreService";
 import {
   clearProjectDeadlineRemindersAsync,
   registerUserForPushNotificationsAsync,
@@ -28,14 +32,52 @@ import {
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+function createOverlayHeaderOptions(navigation) {
+  return {
+    headerShown: true,
+    headerTransparent: true,
+    headerTitle: "",
+    headerShadowVisible: false,
+    headerTintColor: colors.foreground,
+    headerBackTitleVisible: false,
+    headerRightContainerStyle: { paddingRight: 8 },
+    headerLeftContainerStyle: { paddingLeft: 8 },
+    headerRight: () => (
+      <NotificationBellButton
+        onPress={() => navigation.navigate("NotificationsScreen")}
+      />
+    ),
+  };
+}
+
+const notificationsScreenOptions = {
+  title: "Notifications",
+  headerBackTitleVisible: false,
+  headerShadowVisible: false,
+};
+
 function AdminStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AdminHome" component={AdminDashboard} />
-      <Stack.Screen name="CreateProject" component={CreateProjectScreen} />
+    <Stack.Navigator>
+      <Stack.Screen
+        name="AdminHome"
+        component={AdminDashboard}
+        options={({ navigation }) => createOverlayHeaderOptions(navigation)}
+      />
+      <Stack.Screen
+        name="CreateProject"
+        component={CreateProjectScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="ProjectDetailAdmin"
         component={ProjectDetailAdmin}
+        options={({ navigation }) => createOverlayHeaderOptions(navigation)}
+      />
+      <Stack.Screen
+        name="NotificationsScreen"
+        component={NotificationsScreen}
+        options={notificationsScreenOptions}
       />
     </Stack.Navigator>
   );
@@ -63,7 +105,9 @@ function UserTabs() {
             Profile: "user",
           };
 
-          return <Feather name={iconMap[route.name]} size={size} color={color} />;
+          return (
+            <Feather name={iconMap[route.name]} size={size} color={color} />
+          );
         },
       })}
     >
@@ -76,9 +120,22 @@ function UserTabs() {
 
 function UserStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="UserTabs" component={UserTabs} />
-      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
+    <Stack.Navigator>
+      <Stack.Screen
+        name="UserTabs"
+        component={UserTabs}
+        options={({ navigation }) => createOverlayHeaderOptions(navigation)}
+      />
+      <Stack.Screen
+        name="ProjectDetail"
+        component={ProjectDetailScreen}
+        options={({ navigation }) => createOverlayHeaderOptions(navigation)}
+      />
+      <Stack.Screen
+        name="NotificationsScreen"
+        component={NotificationsScreen}
+        options={notificationsScreenOptions}
+      />
     </Stack.Navigator>
   );
 }
@@ -144,7 +201,10 @@ export default function AuthGate() {
           );
 
         try {
-          await syncProjectDeadlineRemindersAsync(joinedProjects);
+          await Promise.all([
+            syncProjectDeadlineRemindersAsync(joinedProjects),
+            syncProjectDeadlineNotifications(user.uid, joinedProjects),
+          ]);
         } catch (error) {
           console.log("Deadline reminder sync error:", error);
         }
@@ -172,10 +232,10 @@ export default function AuthGate() {
     <NavigationContainer>
       {!user ? (
         <RegisterLoginScreen />
-      ) : role === "admin" ? (
-        <AdminStack />
       ) : (
-        <UserStack />
+        <NotificationsProvider userId={user.uid}>
+          {role === "admin" ? <AdminStack /> : <UserStack />}
+        </NotificationsProvider>
       )}
     </NavigationContainer>
   );

@@ -101,7 +101,7 @@ export default function AdminDashboard({ navigation }) {
           <View key={project.id} style={styles.card}>
             <Text style={styles.bold}>{project.name || "Untitled Project"}</Text>
             <Text style={styles.meta}>
-              {project.category || "Not assigned"} • {project.status}
+              {project.category || "Not assigned"} | {project.status}
             </Text>
 
             <TouchableOpacity
@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
+    paddingRight: 54,
   },
   title: { fontSize: 24, fontWeight: "bold" },
   logout: { color: "red", fontWeight: "bold" },
